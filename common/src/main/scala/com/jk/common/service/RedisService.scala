@@ -14,14 +14,14 @@ object redis {
 
     case class RedisServiceLive(config: QueueConfig, client: RedisClient) extends RedisSerivce {
         def pushToUrlQueue(url: String): Task[Unit] = 
-            ZIO.attempt(client.lpush(config.urlQueue, url))
+            ZIO.attempt(client.lpush(config.discoveredUrlQueue, url))
                 .mapBoth(
                     err => new RuntimeException("Failed to push URL to queue.", err),
                     _ => ()
                 )
         
         def popFromUrlQueue(): Task[String] = 
-            ZIO.attempt(client.brpop(0,config.urlQueue))
+            ZIO.attempt(client.brpop(0,config.discoveredUrlQueue))
                 .filterOrDieMessage {
                     case Some(_) => true
                     case _ => false

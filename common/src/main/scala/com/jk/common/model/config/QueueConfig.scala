@@ -3,8 +3,8 @@ package com.jk.common.model.config
 import zio.config._
 import ConfigDescriptor._
 
-case class QueueConfig(urlQueue: String, seedQueue: String)
+case class QueueConfig(discoveredUrlQueue: String, targetUrlQueue: String)
 
 object QueueConfig {
-    val descriptor = (string("url") |@| string("seed"))(QueueConfig.apply, QueueConfig.unapply)
+    val descriptor = (string("discoveredUrls") |@| string("targetUrls"))(QueueConfig.apply, QueueConfig.unapply)
 }
