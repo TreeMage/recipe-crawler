@@ -29,16 +29,15 @@ object App extends zio.App {
     "redis.urlQueue" -> "urlQueue"
   )
 
-  lazy val configLayer = TypesafeConfig.fromHoconFile(new java.io.File("/home/johannes/recipe-thingy/recipe-crawler/master/conf/application.conf"),ApplicationConfig.descriptor)
+  val configLayer = TypesafeConfig.fromHoconFile(new java.io.File("/home/johannes/recipe-thingy/recipe-crawler/master/conf/application.conf"),ApplicationConfig.descriptor)
 
-  lazy val redisClientLayer: ZLayer[Has[RedisConfig], Throwable, Has[RedisClient]] = 
-    ZLayer.fromFunctionZIO { hc => 
+  val redisClientLayer =  ZLayer.fromFunctionZIO[Has[RedisConfig], Throwable, RedisClient] { hc => 
       val config = hc.get
-      ZIO.attempt(new RedisClient(config.host, config.port))
-    }
-  
-  lazy val redisConfigLayer = configLayer.narrow(_.redisConfig)
-  lazy val queueConfigLayer = configLayer.narrow(_.queueConfig)
+      ZIO.attempt(new RedisClient(config.host, config.port)) 
+    } 
+  val redisConfigLayer = configLayer.narrow(_.redisConfig)
+  val queueConfigLayer = configLayer.narrow(_.queueConfig)
   val redisServiceLayer =  (queueConfigLayer ++ (redisConfigLayer >>> redisClientLayer)) >>> RedisServiceLive.layer
+
 }
 

@@ -1,15 +1,9 @@
 package com.jk.crawler.service
 
-import zio.Task
 import com.jk.common.model.config.CrawlerConfig
-import zio.UIO
-import zio.IO
 import com.jk.common.model.config.CrawlerUrlRule
-import zio.ZManaged
-import zio.Schedule
-import zio.ZIO
-import zio.Has
-import zio.Clock
+import com.jk.common.model.domain.CrawledSite
+import zio._
 
 sealed trait CrawlerError
 final case object IOError extends CrawlerError
@@ -19,13 +13,13 @@ final case object RetriesExceeded extends CrawlerError
 
 object crawler {
     trait CrawlerService {
-        def crawl(url: String): ZIO[Has[Clock],CrawlerError, String]
+        def crawl(url: String): IO[CrawlerError, CrawledSite]
     }
 
     case class CrawlerServiceLive(crawlerConfig: CrawlerConfig) extends CrawlerService {
-        def crawl(url: String): ZIO[Has[Clock],CrawlerError, String] = validateRules(url) match {
+        def crawl(url: String): IO[CrawlerError, CrawledSite] = validateRules(url) match {
             case Some(value) => IO.fail(ViolatesRule(value))
-            case None => downloadFileFromUrl(url).retryOrElse(Schedule.recurs(crawlerConfig.retries - 1), (e, _: Any) => ZIO.fail(RetriesExceeded))
+            case None => downloadFileFromUrl(url).map(CrawledSite(url,_)).retryN(crawlerConfig.retries).orElseFail(RetriesExceeded)
         }
 
         private def validateRules(url: String): Option[CrawlerUrlRule] =
@@ -40,4 +34,11 @@ object crawler {
             }
     
     }
+    object CrawlerServiceLive {
+        val layer : URLayer[Has[CrawlerConfig], Has[CrawlerService]] = 
+            (CrawlerServiceLive(_)).toLayer
+    }
+
+    def crawl(url: String): ZIO[Has[CrawlerService], CrawlerError, CrawledSite] = 
+        ZIO.serviceWith[CrawlerService](_.crawl(url))
 }
